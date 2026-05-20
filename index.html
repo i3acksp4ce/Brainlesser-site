@@ -702,9 +702,13 @@ section { padding: 80px 0; }
   font-size: 13px;
   line-height: 2;
   color: var(--text-secondary);
+  white-space: pre;
+  margin: 0;
+  padding: 0;
+  overflow-x: auto;
 }
 
-.file-tree .folder { color: var(--accent-blue); font-weight: 600; }
+.file-tree .folder { color: var(--accent-teal); font-weight: 600; }
 .file-tree .file { color: var(--text-secondary); }
 .file-tree .tree-line { color: var(--text-muted); }
 .file-tree .comment { color: var(--text-muted); font-style: italic; }
@@ -1701,8 +1705,7 @@ section { padding: 80px 0; }
 
       <div class="storage-layout animate-in">
         <div class="storage-tree-card">
-          <div class="file-tree">
-<span class="folder">.brainlesser/</span>
+          <div class="file-tree"><span class="folder">.brainlesser/</span>
 <span class="tree-line">├── </span><span class="folder">discuss/</span>
 <span class="tree-line">│   ├── </span><span class="file">index.yml</span>
 <span class="tree-line">│   ├── </span><span class="file">0001-task-filter-sidebar.md</span>
@@ -1718,8 +1721,7 @@ section { padding: 80px 0; }
 <span class="tree-line">└── </span><span class="folder">executions/</span>
 <span class="tree-line">    ├── </span><span class="file">index.yml</span>
 <span class="tree-line">    ├── </span><span class="file">0001-filter-status-assignee.md</span>
-<span class="tree-line">    └── </span><span class="file">0002-auth-token-refresh.md</span>
-          </div>
+<span class="tree-line">    └── </span><span class="file">0002-auth-token-refresh.md</span></div>
         </div>
 
         <div class="storage-tree-card">
