@@ -1,0 +1,2234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brainlesser - Architecture Visualization</title>
+<style>
+/* ===== RESET & VARIABLES ===== */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg-deep: #0a0b10;
+  --bg-surface: #10111a;
+  --bg-card: rgba(18, 20, 35, 0.7);
+  --bg-card-hover: rgba(25, 28, 50, 0.85);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-border-bright: rgba(255, 255, 255, 0.12);
+  --text-primary: #e8eaf0;
+  --text-secondary: #8b8fa4;
+  --text-muted: #555872;
+  --accent-blue: #4a7cff;
+  --accent-teal: #2dd4bf;
+  --accent-purple: #a78bfa;
+  --accent-pink: #f472b6;
+  --accent-amber: #fbbf24;
+  --accent-red: #f87171;
+  --accent-green: #4ade80;
+  --gradient-hero: linear-gradient(135deg, #0a0b10 0%, #111330 40%, #0a1a1a 100%);
+  --gradient-accent: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+  --gradient-teal-purple: linear-gradient(135deg, var(--accent-teal), var(--accent-purple));
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --shadow-glow-blue: 0 0 30px rgba(74, 124, 255, 0.15);
+  --shadow-glow-teal: 0 0 30px rgba(45, 212, 191, 0.15);
+  --shadow-glow-purple: 0 0 30px rgba(167, 139, 250, 0.15);
+  --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  --font-sans: -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --transition-base: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html { scroll-behavior: smooth; scrollbar-width: thin; scrollbar-color: var(--accent-blue) var(--bg-deep); }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-deep); }
+::-webkit-scrollbar-thumb { background: var(--accent-blue); border-radius: 3px; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  line-height: 1.7;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ===== BACKGROUND GRID ===== */
+.bg-grid {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(74, 124, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(74, 124, 255, 0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+  animation: gridPulse 8s ease-in-out infinite;
+}
+
+@keyframes gridPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+
+.bg-glow {
+  position: fixed;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  filter: blur(120px);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.12;
+}
+
+.bg-glow-1 { top: -200px; right: -100px; background: var(--accent-blue); animation: glowDrift1 12s ease-in-out infinite; }
+.bg-glow-2 { bottom: -200px; left: -100px; background: var(--accent-purple); animation: glowDrift2 15s ease-in-out infinite; }
+.bg-glow-3 { top: 40%; left: 50%; background: var(--accent-teal); animation: glowDrift3 18s ease-in-out infinite; opacity: 0.06; }
+
+@keyframes glowDrift1 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-60px, 40px); } }
+@keyframes glowDrift2 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(50px, -30px); } }
+@keyframes glowDrift3 { 0%, 100% { transform: translate(-50%, -50%); } 50% { transform: translate(-50%, -45%); } }
+
+/* ===== LAYOUT ===== */
+.page-wrapper { position: relative; z-index: 1; }
+
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 32px;
+}
+
+section { padding: 80px 0; }
+
+/* ===== NAVIGATION ===== */
+.side-nav {
+  position: fixed;
+  right: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.side-nav a {
+  display: block;
+  width: 4px;
+  height: 28px;
+  border-radius: 2px;
+  background: var(--text-muted);
+  transition: var(--transition-base);
+  position: relative;
+}
+
+.side-nav a:hover,
+.side-nav a.active {
+  background: var(--accent-blue);
+  width: 6px;
+  box-shadow: 0 0 12px rgba(74, 124, 255, 0.4);
+}
+
+.side-nav a .nav-label {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  opacity: 0;
+  pointer-events: none;
+  transition: var(--transition-base);
+}
+
+.side-nav a:hover .nav-label { opacity: 1; }
+
+.top-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 90;
+  background: rgba(10, 11, 16, 0.8);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--glass-border);
+  padding: 12px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transform: translateY(-100%);
+  transition: var(--transition-base);
+}
+
+.top-bar.visible { transform: translateY(0); }
+
+.top-bar-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--gradient-accent);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.top-bar-links { display: flex; gap: 24px; }
+
+.top-bar-links a {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: var(--transition-base);
+  font-weight: 500;
+}
+
+.top-bar-links a:hover { color: var(--accent-blue); }
+
+/* ===== HERO ===== */
+#hero {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  position: relative;
+  padding-top: 0;
+}
+
+.hero-content { max-width: 800px; }
+
+.hero-badge {
+  display: inline-block;
+  padding: 6px 16px;
+  border-radius: 100px;
+  border: 1px solid var(--glass-border-bright);
+  background: var(--bg-card);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-teal);
+  margin-bottom: 32px;
+  animation: fadeInDown 0.8s ease-out;
+}
+
+.hero-title {
+  font-size: clamp(48px, 8vw, 96px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  margin-bottom: 20px;
+  background: linear-gradient(135deg, #fff 0%, var(--accent-blue) 50%, var(--accent-teal) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: fadeInUp 0.8s ease-out 0.1s both;
+}
+
+.hero-subtitle {
+  font-size: clamp(18px, 2.5vw, 24px);
+  font-weight: 300;
+  color: var(--text-secondary);
+  margin-bottom: 32px;
+  animation: fadeInUp 0.8s ease-out 0.2s both;
+}
+
+.hero-tagline {
+  font-size: 15px;
+  color: var(--text-muted);
+  font-style: italic;
+  max-width: 520px;
+  margin: 0 auto 40px;
+  animation: fadeInUp 0.8s ease-out 0.3s both;
+}
+
+.hero-meta {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+  flex-wrap: wrap;
+  animation: fadeInUp 0.8s ease-out 0.4s both;
+}
+
+.hero-meta-item {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  border: 1px solid var(--glass-border);
+}
+
+.hero-scroll-hint {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  animation: fadeInUp 0.8s ease-out 0.6s both;
+}
+
+.hero-scroll-hint span {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
+}
+
+.scroll-arrow {
+  width: 20px;
+  height: 20px;
+  border-right: 2px solid var(--accent-blue);
+  border-bottom: 2px solid var(--accent-blue);
+  transform: rotate(45deg);
+  animation: scrollBounce 2s ease-in-out infinite;
+}
+
+@keyframes scrollBounce {
+  0%, 100% { transform: rotate(45deg) translateY(0); opacity: 0.4; }
+  50% { transform: rotate(45deg) translateY(6px); opacity: 1; }
+}
+
+/* ===== SECTION HEADERS ===== */
+.section-header {
+  margin-bottom: 48px;
+}
+
+.section-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--accent-blue);
+  margin-bottom: 12px;
+}
+
+.section-title {
+  font-size: clamp(28px, 4vw, 42px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 12px;
+}
+
+.section-desc {
+  font-size: 16px;
+  color: var(--text-secondary);
+  max-width: 640px;
+}
+
+/* ===== ARCHITECTURE DIAGRAM ===== */
+.arch-diagram {
+  position: relative;
+  min-height: 600px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.arch-center {
+  position: relative;
+  z-index: 2;
+}
+
+.arch-hub {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: var(--gradient-teal-purple);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 60px rgba(45, 212, 191, 0.2), 0 0 120px rgba(167, 139, 250, 0.1);
+  animation: hubPulse 4s ease-in-out infinite;
+  cursor: default;
+}
+
+@keyframes hubPulse {
+  0%, 100% { box-shadow: 0 0 60px rgba(45, 212, 191, 0.2), 0 0 120px rgba(167, 139, 250, 0.1); }
+  50% { box-shadow: 0 0 80px rgba(45, 212, 191, 0.3), 0 0 160px rgba(167, 139, 250, 0.15); }
+}
+
+.arch-hub-name {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: #fff;
+}
+
+.arch-hub-sub {
+  font-size: 10px;
+  color: rgba(255,255,255,0.7);
+  margin-top: 4px;
+}
+
+.arch-nodes {
+  position: absolute;
+  inset: 0;
+}
+
+.arch-node {
+  position: absolute;
+  width: 140px;
+  padding: 14px 12px;
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(10px);
+  text-align: center;
+  cursor: pointer;
+  transition: var(--transition-base);
+  z-index: 3;
+}
+
+.arch-node:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--glass-border-bright);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-card);
+}
+
+.arch-node.highlight {
+  border-color: var(--accent-blue);
+  box-shadow: var(--shadow-glow-blue);
+}
+
+.arch-node-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  margin: 0 auto 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+}
+
+.arch-node-title {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.arch-node-sub {
+  font-size: 10px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* SVG connections overlay */
+.arch-svg {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.arch-line {
+  stroke: rgba(74, 124, 255, 0.15);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+  transition: var(--transition-base);
+}
+
+.arch-line.active {
+  stroke: var(--accent-blue);
+  stroke-opacity: 0.5;
+  stroke-width: 1.5;
+}
+
+/* Capability colors */
+.color-discuss .arch-node-icon { background: rgba(45, 212, 191, 0.15); color: var(--accent-teal); }
+.color-planner .arch-node-icon { background: rgba(74, 124, 255, 0.15); color: var(--accent-blue); }
+.color-issues .arch-node-icon { background: rgba(167, 139, 250, 0.15); color: var(--accent-purple); }
+.color-execute .arch-node-icon { background: rgba(251, 191, 36, 0.15); color: var(--accent-amber); }
+.color-solo .arch-node-icon { background: rgba(74, 222, 128, 0.15); color: var(--accent-green); }
+.color-squad .arch-node-icon { background: rgba(244, 114, 182, 0.15); color: var(--accent-pink); }
+.color-debug .arch-node-icon { background: rgba(248, 113, 113, 0.15); color: var(--accent-red); }
+.color-review .arch-node-icon { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
+
+/* Principles */
+.arch-principles {
+  position: absolute;
+  bottom: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 16px;
+  z-index: 3;
+}
+
+.arch-principle {
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  background: rgba(74, 124, 255, 0.06);
+  border: 1px solid rgba(74, 124, 255, 0.15);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-blue);
+  white-space: nowrap;
+}
+
+/* ===== ROUTING TABLE ===== */
+.routing-table-wrap {
+  overflow-x: auto;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  background: var(--bg-card);
+  backdrop-filter: blur(10px);
+}
+
+.routing-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.routing-table th {
+  text-align: left;
+  padding: 16px 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent-blue);
+  border-bottom: 1px solid var(--glass-border);
+  background: rgba(74, 124, 255, 0.04);
+}
+
+.routing-table td {
+  padding: 14px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  vertical-align: top;
+}
+
+.routing-table tr:last-child td { border-bottom: none; }
+
+.routing-table tr {
+  transition: var(--transition-base);
+  cursor: pointer;
+}
+
+.routing-table tr:hover {
+  background: rgba(74, 124, 255, 0.04);
+}
+
+.route-trigger { color: var(--text-primary); max-width: 400px; }
+.route-target {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.route-target-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge-discuss { background: rgba(45, 212, 191, 0.12); color: var(--accent-teal); }
+.badge-planner { background: rgba(74, 124, 255, 0.12); color: var(--accent-blue); }
+.badge-issues { background: rgba(167, 139, 250, 0.12); color: var(--accent-purple); }
+.badge-execute { background: rgba(251, 191, 36, 0.12); color: var(--accent-amber); }
+.badge-debug { background: rgba(248, 113, 113, 0.12); color: var(--accent-red); }
+.badge-review { background: rgba(139, 92, 246, 0.12); color: #8b5cf6; }
+
+/* ===== WORKFLOW PIPELINE ===== */
+.pipeline-container { display: flex; flex-direction: column; gap: 32px; }
+
+.pipeline-card {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  background: var(--bg-card);
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+  transition: var(--transition-base);
+}
+
+.pipeline-card:hover {
+  border-color: var(--glass-border-bright);
+}
+
+.pipeline-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  cursor: pointer;
+  transition: var(--transition-base);
+}
+
+.pipeline-header:hover { background: rgba(255,255,255,0.02); }
+
+.pipeline-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+}
+
+.pipeline-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.pipeline-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.pipeline-toggle {
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.04);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition-base);
+  flex-shrink: 0;
+}
+
+.pipeline-toggle svg { transition: var(--transition-base); }
+
+.pipeline-card.open .pipeline-toggle svg { transform: rotate(180deg); }
+
+.pipeline-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pipeline-card.open .pipeline-body { max-height: 600px; }
+
+.pipeline-flow {
+  padding: 0 24px 24px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0;
+}
+
+.flow-step {
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--glass-border);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: var(--transition-base);
+}
+
+.flow-step:hover {
+  background: rgba(74, 124, 255, 0.08);
+  border-color: rgba(74, 124, 255, 0.2);
+}
+
+.flow-arrow {
+  padding: 0 6px;
+  color: var(--text-muted);
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+}
+
+.pipeline-submodes {
+  padding: 0 24px 24px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.submode-tag {
+  padding: 4px 12px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+}
+
+/* ===== STORAGE TREE ===== */
+.storage-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.storage-tree-card {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  background: var(--bg-card);
+  backdrop-filter: blur(10px);
+  padding: 28px;
+  transition: var(--transition-base);
+}
+
+.storage-tree-card:hover {
+  border-color: var(--glass-border-bright);
+  box-shadow: var(--shadow-card);
+}
+
+.storage-tree-card:first-child { grid-column: 1 / -1; }
+
+.file-tree {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 2;
+  color: var(--text-secondary);
+}
+
+.file-tree .folder { color: var(--accent-blue); font-weight: 600; }
+.file-tree .file { color: var(--text-secondary); }
+.file-tree .tree-line { color: var(--text-muted); }
+.file-tree .comment { color: var(--text-muted); font-style: italic; }
+
+.storage-purpose {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.storage-purpose-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.storage-purpose-item .label { font-weight: 600; color: var(--accent-blue); min-width: 70px; }
+.storage-purpose-item .desc { color: var(--text-secondary); }
+
+/* ===== CHECKPOINT SYSTEM ===== */
+.checkpoint-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.checkpoint-card {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  background: var(--bg-card);
+  backdrop-filter: blur(10px);
+  padding: 28px;
+  transition: var(--transition-base);
+}
+
+.checkpoint-card:hover {
+  border-color: var(--glass-border-bright);
+}
+
+.checkpoint-format {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+  padding: 20px;
+  border-radius: var(--radius-md);
+  background: rgba(74, 124, 255, 0.06);
+  border: 1px solid rgba(74, 124, 255, 0.12);
+  margin-bottom: 20px;
+  letter-spacing: 0.05em;
+}
+
+.checkpoint-format .prefix { color: var(--accent-teal); }
+.checkpoint-format .separator { color: var(--text-muted); }
+.checkpoint-format .type-char { color: var(--accent-purple); }
+.checkpoint-format .sequence { color: var(--accent-amber); }
+
+.checkpoint-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.checkpoint-example {
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--glass-border);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  transition: var(--transition-base);
+}
+
+.checkpoint-example:hover { background: rgba(74, 124, 255, 0.08); }
+
+.type-legend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.type-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.type-letter {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.type-T .type-letter { background: rgba(74, 124, 255, 0.15); color: var(--accent-blue); }
+.type-I .type-letter { background: rgba(167, 139, 250, 0.15); color: var(--accent-purple); }
+.type-E .type-letter { background: rgba(251, 191, 36, 0.15); color: var(--accent-amber); }
+.type-D .type-letter { background: rgba(248, 113, 113, 0.15); color: var(--accent-red); }
+.type-R .type-letter { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
+
+.type-label { color: var(--text-secondary); }
+
+/* ===== CONFIG SYSTEM ===== */
+.config-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.config-card {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  background: var(--bg-card);
+  backdrop-filter: blur(10px);
+  padding: 28px;
+  transition: var(--transition-base);
+}
+
+.config-card:hover { border-color: var(--glass-border-bright); }
+
+.config-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: var(--accent-blue);
+}
+
+.code-block {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.8;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--glass-border);
+  overflow-x: auto;
+}
+
+.code-block .key { color: var(--accent-teal); }
+.code-block .value { color: var(--accent-amber); }
+.code-block .comment { color: var(--text-muted); }
+
+.load-order-list { list-style: none; counter-reset: loadstep; }
+
+.load-order-list li {
+  counter-increment: loadstep;
+  display: flex;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  font-size: 13px;
+  align-items: flex-start;
+}
+
+.load-order-list li:last-child { border-bottom: none; }
+
+.load-order-list li::before {
+  content: counter(loadstep);
+  min-width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(74, 124, 255, 0.12);
+  color: var(--accent-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.priority-list { list-style: none; }
+
+.priority-list li {
+  display: flex;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  font-size: 13px;
+  align-items: flex-start;
+}
+
+.priority-list li:last-child { border-bottom: none; }
+
+.priority-num {
+  min-width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.priority-1 .priority-num { background: rgba(248, 113, 113, 0.2); color: var(--accent-red); }
+.priority-2 .priority-num { background: rgba(251, 191, 36, 0.2); color: var(--accent-amber); }
+.priority-3 .priority-num { background: rgba(74, 124, 255, 0.2); color: var(--accent-blue); }
+.priority-4 .priority-num { background: rgba(167, 139, 250, 0.2); color: var(--accent-purple); }
+.priority-5 .priority-num { background: rgba(45, 212, 191, 0.2); color: var(--accent-teal); }
+
+.priority-label { color: var(--text-primary); font-weight: 600; font-size: 13px; }
+.priority-note { color: var(--text-secondary); }
+
+/* ===== ARTIFACT MANAGEMENT ===== */
+.artifact-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.artifact-card {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  background: var(--bg-card);
+  backdrop-filter: blur(10px);
+  padding: 28px;
+  transition: var(--transition-base);
+}
+
+.artifact-card:hover { border-color: var(--glass-border-bright); }
+
+.artifact-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.artifact-card-title .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.dot-write { background: var(--accent-red); }
+.dot-batch { background: var(--accent-amber); }
+.dot-flush { background: var(--accent-green); }
+
+.artifact-list { list-style: none; }
+
+.artifact-list li {
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding: 6px 0;
+  padding-left: 16px;
+  position: relative;
+}
+
+.artifact-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 13px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+}
+
+/* ===== ENGINEER CONTRACT ===== */
+.contract-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 24px;
+}
+
+.contract-box {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  background: var(--bg-card);
+  backdrop-filter: blur(10px);
+  padding: 28px;
+  text-align: center;
+  transition: var(--transition-base);
+}
+
+.contract-box:hover { border-color: var(--glass-border-bright); }
+
+.contract-box-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 12px;
+}
+
+.contract-input .contract-box-label { color: var(--accent-teal); }
+.contract-process .contract-box-label { color: var(--accent-blue); }
+.contract-output .contract-box-label { color: var(--accent-purple); }
+
+.contract-arrow-between {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 20px;
+}
+
+.contract-fields {
+  text-align: left;
+  margin-top: 12px;
+}
+
+.contract-field {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.03);
+  margin-bottom: 6px;
+  color: var(--text-secondary);
+}
+
+.status-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  justify-content: center;
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+
+.status-completed { background: rgba(74, 222, 128, 0.12); color: var(--accent-green); }
+.status-blocked { background: rgba(251, 191, 36, 0.12); color: var(--accent-amber); }
+.status-failed { background: rgba(248, 113, 113, 0.12); color: var(--accent-red); }
+.status-cancelled { background: rgba(139, 92, 246, 0.12); color: #8b5cf6; }
+
+/* ===== VERIFICATION CHECKLIST ===== */
+.verification-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.verification-category {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  background: var(--bg-card);
+  backdrop-filter: blur(10px);
+  padding: 28px;
+  transition: var(--transition-base);
+}
+
+.verification-category:hover { border-color: var(--glass-border-bright); }
+
+.verification-cat-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.verification-cat-num {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(74, 124, 255, 0.12);
+  color: var(--accent-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.verification-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.verification-check {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 1.5px solid var(--glass-border-bright);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+  transition: var(--transition-base);
+  cursor: pointer;
+}
+
+.verification-check.checked {
+  background: var(--accent-teal);
+  border-color: var(--accent-teal);
+}
+
+.verification-check.checked svg { display: block; }
+.verification-check svg { display: none; width: 10px; height: 10px; }
+
+/* ===== DISCUSS OVERRIDE CALLOUT ===== */
+.callout {
+  border-radius: var(--radius-lg);
+  border: 1px solid;
+  padding: 24px;
+  margin-top: 24px;
+}
+
+.callout-info {
+  border-color: rgba(45, 212, 191, 0.2);
+  background: rgba(45, 212, 191, 0.04);
+}
+
+.callout-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: var(--accent-teal);
+}
+
+.callout-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-in {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+.animate-in.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ===== FOOTER ===== */
+.page-footer {
+  padding: 48px 0;
+  text-align: center;
+  border-top: 1px solid var(--glass-border);
+}
+
+.footer-text {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.footer-text a {
+  color: var(--accent-blue);
+  text-decoration: none;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1024px) {
+  .arch-diagram { min-height: 500px; }
+  .arch-node { width: 120px; padding: 10px 8px; }
+  .arch-node-title { font-size: 11px; }
+  .storage-layout, .checkpoint-grid, .config-grid, .verification-grid { grid-template-columns: 1fr; }
+  .artifact-grid { grid-template-columns: 1fr; }
+  .contract-layout { grid-template-columns: 1fr; }
+  .side-nav { display: none; }
+}
+
+@media (max-width: 768px) {
+  .container { padding: 0 16px; }
+  section { padding: 48px 0; }
+  .arch-diagram { min-height: 400px; }
+  .arch-hub { width: 120px; height: 120px; }
+  .arch-node { width: 100px; padding: 8px 6px; font-size: 10px; }
+  .arch-node-icon { width: 28px; height: 28px; font-size: 11px; }
+  .arch-principles { flex-direction: column; gap: 8px; }
+  .hero-meta { flex-direction: column; gap: 8px; }
+  .pipeline-flow { gap: 4px; }
+  .flow-step { font-size: 11px; padding: 6px 10px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Background effects -->
+<div class="bg-grid"></div>
+<div class="bg-glow bg-glow-1"></div>
+<div class="bg-glow bg-glow-2"></div>
+<div class="bg-glow bg-glow-3"></div>
+
+<!-- Side Navigation -->
+<nav class="side-nav" id="sideNav">
+  <a href="#hero" data-section="hero"><span class="nav-label">Top</span></a>
+  <a href="#architecture" data-section="architecture"><span class="nav-label">Architecture</span></a>
+  <a href="#routing" data-section="routing"><span class="nav-label">Routing</span></a>
+  <a href="#pipelines" data-section="pipelines"><span class="nav-label">Workflows</span></a>
+  <a href="#storage" data-section="storage"><span class="nav-label">Storage</span></a>
+  <a href="#checkpoints" data-section="checkpoints"><span class="nav-label">Checkpoints</span></a>
+  <a href="#configuration" data-section="configuration"><span class="nav-label">Config</span></a>
+  <a href="#artifacts" data-section="artifacts"><span class="nav-label">Artifacts</span></a>
+  <a href="#contract" data-section="contract"><span class="nav-label">Contract</span></a>
+  <a href="#verification" data-section="verification"><span class="nav-label">Verification</span></a>
+</nav>
+
+<!-- Top Bar (appears on scroll) -->
+<header class="top-bar" id="topBar">
+  <span class="top-bar-title">Brainlesser</span>
+  <div class="top-bar-links">
+    <a href="#architecture">Architecture</a>
+    <a href="#routing">Routing</a>
+    <a href="#pipelines">Workflows</a>
+    <a href="#storage">Storage</a>
+    <a href="#configuration">Config</a>
+    <a href="#verification">Verification</a>
+  </div>
+</header>
+
+<div class="page-wrapper">
+
+  <!-- ===== 1. HERO SECTION ===== -->
+  <section id="hero">
+    <div class="container">
+      <div class="hero-content">
+        <div class="hero-badge">Orchestration Layer</div>
+        <h1 class="hero-title">Brainlesser</h1>
+        <p class="hero-subtitle">Software Development Orchestration Layer</p>
+        <p class="hero-tagline">Route user intent to the smallest capability that can handle the work</p>
+        <div class="hero-meta">
+          <span class="hero-meta-item">v2026-05-20</span>
+          <span class="hero-meta-item">i3acksp4ce</span>
+          <span class="hero-meta-item">Skiller 4.5.0</span>
+        </div>
+      </div>
+    </div>
+    <div class="hero-scroll-hint">
+      <span>Scroll</span>
+      <div class="scroll-arrow"></div>
+    </div>
+  </section>
+
+  <!-- ===== 2. ARCHITECTURE OVERVIEW ===== -->
+  <section id="architecture">
+    <div class="container">
+      <div class="section-header animate-in">
+        <div class="section-label">Architecture</div>
+        <h2 class="section-title">Capability Hub</h2>
+        <p class="section-desc">Brainlesser detects user intent from conversation and routes to the smallest capability that fully handles the work. Each capability has a clean boundary and its own input/process/output shape.</p>
+      </div>
+
+      <div class="arch-diagram animate-in" id="archDiagram">
+        <!-- SVG connections -->
+        <svg class="arch-svg" id="archSvg"></svg>
+
+        <!-- Center Hub -->
+        <div class="arch-center">
+          <div class="arch-hub">
+            <span class="arch-hub-name">BRAINLESSER</span>
+            <span class="arch-hub-sub">Orchestrator</span>
+          </div>
+        </div>
+
+        <!-- Capability Nodes -->
+        <div class="arch-nodes">
+          <div class="arch-node color-discuss" data-target="pipeline-discuss" style="top: 5%; left: 10%;">
+            <div class="arch-node-icon">D</div>
+            <div class="arch-node-title">Discuss</div>
+            <div class="arch-node-sub">Shape unclear ideas</div>
+          </div>
+
+          <div class="arch-node color-planner" data-target="pipeline-planner" style="top: 5%; right: 10%;">
+            <div class="arch-node-icon">P</div>
+            <div class="arch-node-title">Planner</div>
+            <div class="arch-node-sub">Create implementation plans</div>
+          </div>
+
+          <div class="arch-node color-issues" data-target="pipeline-create-issues" style="top: 32%; left: 2%;">
+            <div class="arch-node-icon">I</div>
+            <div class="arch-node-title">Create Issues</div>
+            <div class="arch-node-sub">Vertical slice drafts</div>
+          </div>
+
+          <div class="arch-node color-execute" data-target="pipeline-execute-plan" style="top: 32%; right: 2%;">
+            <div class="arch-node-icon">E</div>
+            <div class="arch-node-title">Execute Plan</div>
+            <div class="arch-node-sub">Dispatch orchestrator</div>
+          </div>
+
+          <div class="arch-node color-solo" data-target="pipeline-solo" style="bottom: 22%; left: 2%;">
+            <div class="arch-node-icon">S</div>
+            <div class="arch-node-title">Solo Engineer</div>
+            <div class="arch-node-sub">Sequential execution</div>
+          </div>
+
+          <div class="arch-node color-squad" data-target="pipeline-squad" style="bottom: 22%; right: 2%;">
+            <div class="arch-node-icon">Q</div>
+            <div class="arch-node-title">Squad Engineer</div>
+            <div class="arch-node-sub">Parallel workstreams</div>
+          </div>
+
+          <div class="arch-node color-debug" data-target="pipeline-debug" style="bottom: 0; left: 18%;">
+            <div class="arch-node-icon">X</div>
+            <div class="arch-node-title">Debug Engineer</div>
+            <div class="arch-node-sub">Failure gate</div>
+          </div>
+
+          <div class="arch-node color-review" data-target="pipeline-review" style="bottom: 0; right: 18%;">
+            <div class="arch-node-icon">R</div>
+            <div class="arch-node-title">Review Engineer</div>
+            <div class="arch-node-sub">Quality assessment</div>
+          </div>
+        </div>
+
+        <!-- Principles Foundation -->
+        <div class="arch-principles">
+          <div class="arch-principle">Engineer Contract</div>
+          <div class="arch-principle">Test-Driven Development</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 3. ROUTING TABLE ===== -->
+  <section id="routing">
+    <div class="container">
+      <div class="section-header animate-in">
+        <div class="section-label">Routing</div>
+        <h2 class="section-title">Capability Routing Table</h2>
+        <p class="section-desc">Intent comes from the conversation; the user does not need to name a capability. Before starting any capability, route to the smallest capability that fully handles the work.</p>
+      </div>
+
+      <div class="routing-table-wrap animate-in">
+        <table class="routing-table">
+          <thead>
+            <tr>
+              <th>Trigger</th>
+              <th>Route To</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr data-target="pipeline-discuss">
+              <td class="route-trigger">Unclear idea, requirement, or plan</td>
+              <td class="route-target"><span class="route-target-badge badge-discuss">Discuss</span></td>
+            </tr>
+            <tr data-target="pipeline-discuss">
+              <td class="route-trigger">User types <code>discuss</code> or intent is to clarify through conversation</td>
+              <td class="route-target"><span class="route-target-badge badge-discuss">Discuss (regular)</span></td>
+            </tr>
+            <tr data-target="pipeline-discuss">
+              <td class="route-trigger">User types <code>auto discuss</code> or wants agent-run discussion</td>
+              <td class="route-target"><span class="route-target-badge badge-discuss">Discuss (Auto Discuss)</span></td>
+            </tr>
+            <tr data-target="pipeline-planner">
+              <td class="route-trigger">Clear requirement without executable tasks</td>
+              <td class="route-target"><span class="route-target-badge badge-planner">Planner</span></td>
+            </tr>
+            <tr data-target="pipeline-create-issues">
+              <td class="route-trigger">Clear plan or requirement that needs issue-ready slices</td>
+              <td class="route-target"><span class="route-target-badge badge-issues">Create Issues</span></td>
+            </tr>
+            <tr data-target="pipeline-execute-plan">
+              <td class="route-trigger">Plan, issue draft, or conversation with executable tasks</td>
+              <td class="route-target"><span class="route-target-badge badge-execute">Execute Plan</span></td>
+            </tr>
+            <tr data-target="pipeline-debug">
+              <td class="route-trigger">Bug, test failure, build failure, performance regression, or unexpected behavior</td>
+              <td class="route-target"><span class="route-target-badge badge-debug">Debug Engineer</span></td>
+            </tr>
+            <tr data-target="pipeline-debug">
+              <td class="route-trigger">Engineer hits a bug, test failure, or unexpected behavior during execution</td>
+              <td class="route-target"><span class="route-target-badge badge-debug">Debug Engineer</span></td>
+            </tr>
+            <tr data-target="pipeline-review">
+              <td class="route-trigger">Caller needs a review gate or quality assessment</td>
+              <td class="route-target"><span class="route-target-badge badge-review">Review Engineer</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 4. WORKFLOW PIPELINES ===== -->
+  <section id="pipelines">
+    <div class="container">
+      <div class="section-header animate-in">
+        <div class="section-label">Workflows</div>
+        <h2 class="section-title">Capability Pipelines</h2>
+        <p class="section-desc">Each capability handles one boundary of the workflow. Click to expand and explore the flow within each capability.</p>
+      </div>
+
+      <div class="pipeline-container">
+
+        <!-- Discuss -->
+        <div class="pipeline-card animate-in open" id="pipeline-discuss">
+          <div class="pipeline-header" onclick="togglePipeline(this)">
+            <div class="pipeline-icon" style="background: rgba(45, 212, 191, 0.15); color: var(--accent-teal);">D</div>
+            <div>
+              <div class="pipeline-title">Discuss</div>
+              <div class="pipeline-desc">Turns unclear ideas into Plan-ready briefs while minimizing thinking burden</div>
+            </div>
+            <div class="pipeline-toggle">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+          </div>
+          <div class="pipeline-body">
+            <div class="pipeline-submodes">
+              <span class="submode-tag">Explore</span>
+              <span class="submode-tag">Grill</span>
+              <span class="submode-tag">Auto Discuss</span>
+              <span class="submode-tag">Finalize</span>
+            </div>
+            <div class="pipeline-flow">
+              <span class="flow-step">Idea / Input</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Context Scan</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Mode Select</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Structured Questions</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Context Updates</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Grill Checklist</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Plan-Ready Brief</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Handoff</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Planner -->
+        <div class="pipeline-card animate-in" id="pipeline-planner">
+          <div class="pipeline-header" onclick="togglePipeline(this)">
+            <div class="pipeline-icon" style="background: rgba(74, 124, 255, 0.15); color: var(--accent-blue);">P</div>
+            <div>
+              <div class="pipeline-title">Planner</div>
+              <div class="pipeline-desc">Creates implementation plans from any context - human-friendly overview plus agent-executable tasks</div>
+            </div>
+            <div class="pipeline-toggle">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+          </div>
+          <div class="pipeline-body">
+            <div class="pipeline-flow">
+              <span class="flow-step">Any Context</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Planning Input Summary</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Scope Check</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Work Breakdown</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Agent-Executable Tasks</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Issue-Ready Slices</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Self-Review</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Plan File</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Create Issues -->
+        <div class="pipeline-card animate-in" id="pipeline-create-issues">
+          <div class="pipeline-header" onclick="togglePipeline(this)">
+            <div class="pipeline-icon" style="background: rgba(167, 139, 250, 0.15); color: var(--accent-purple);">I</div>
+            <div>
+              <div class="pipeline-title">Create Issues</div>
+              <div class="pipeline-desc">Breaks work into vertical slices or tracer bullets with clear behavior, acceptance criteria, and verification</div>
+            </div>
+            <div class="pipeline-toggle">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+          </div>
+          <div class="pipeline-body">
+            <div class="pipeline-flow">
+              <span class="flow-step">Context / Plan File</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Issue Input Summary</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Draft Vertical Slices</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Dependency Ordering</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">User Review</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Issue Draft File</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Execute Plan -->
+        <div class="pipeline-card animate-in" id="pipeline-execute-plan">
+          <div class="pipeline-header" onclick="togglePipeline(this)">
+            <div class="pipeline-icon" style="background: rgba(251, 191, 36, 0.15); color: var(--accent-amber);">E</div>
+            <div>
+              <div class="pipeline-title">Execute Plan</div>
+              <div class="pipeline-desc">Orchestrator that picks Solo/Squad/Debug mode, runs preflight, dispatches engineers, and records results</div>
+            </div>
+            <div class="pipeline-toggle">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+          </div>
+          <div class="pipeline-body">
+            <div class="pipeline-flow">
+              <span class="flow-step">Execution Input</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Source Readiness</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Mode Recommendation</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Preflight</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Engineer Dispatch</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Result Recording</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Verification</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Completion</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Solo Engineer -->
+        <div class="pipeline-card animate-in" id="pipeline-solo">
+          <div class="pipeline-header" onclick="togglePipeline(this)">
+            <div class="pipeline-icon" style="background: rgba(74, 222, 128, 0.15); color: var(--accent-green);">S</div>
+            <div>
+              <div class="pipeline-title">Solo Engineer</div>
+              <div class="pipeline-desc">Executes a clear assignment in one context, sequentially, with production-grade care</div>
+            </div>
+            <div class="pipeline-toggle">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+          </div>
+          <div class="pipeline-body">
+            <div class="pipeline-flow">
+              <span class="flow-step">Assignment</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Context Read</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Blocker Check</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Sequential Execution</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Verification</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Self-Review</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Result</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Squad Engineer -->
+        <div class="pipeline-card animate-in" id="pipeline-squad">
+          <div class="pipeline-header" onclick="togglePipeline(this)">
+            <div class="pipeline-icon" style="background: rgba(244, 114, 182, 0.15); color: var(--accent-pink);">Q</div>
+            <div>
+              <div class="pipeline-title">Squad Engineer</div>
+              <div class="pipeline-desc">Executes assignments through parallel subagent-driven workstreams when real independent workstreams exist</div>
+            </div>
+            <div class="pipeline-toggle">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+          </div>
+          <div class="pipeline-body">
+            <div class="pipeline-flow">
+              <span class="flow-step">Assignment</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Workstream Packets</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Parallel Dispatch</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Result Collection</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Review Gates</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Integration</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Result</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Debug Engineer -->
+        <div class="pipeline-card animate-in" id="pipeline-debug">
+          <div class="pipeline-header" onclick="togglePipeline(this)">
+            <div class="pipeline-icon" style="background: rgba(248, 113, 113, 0.15); color: var(--accent-red);">X</div>
+            <div>
+              <div class="pipeline-title">Debug Engineer</div>
+              <div class="pipeline-desc">The failure gate - finds root cause before proposing a fix. No guessing, no quick patches.</div>
+            </div>
+            <div class="pipeline-toggle">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+          </div>
+          <div class="pipeline-body">
+            <div class="pipeline-flow">
+              <span class="flow-step">Failure Input</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Build Feedback Loop</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Reproduce</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Root Cause</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Ranked Hypotheses</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Fix + Regression Test</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Verification</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Postmortem</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Review Engineer -->
+        <div class="pipeline-card animate-in" id="pipeline-review">
+          <div class="pipeline-header" onclick="togglePipeline(this)">
+            <div class="pipeline-icon" style="background: rgba(139, 92, 246, 0.15); color: #8b5cf6;">R</div>
+            <div>
+              <div class="pipeline-title">Review Engineer</div>
+              <div class="pipeline-desc">Orchestrates review gates and normalizes findings for spec compliance and implementation quality</div>
+            </div>
+            <div class="pipeline-toggle">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+          </div>
+          <div class="pipeline-body">
+            <div class="pipeline-submodes">
+              <span class="submode-tag">spec_compliance</span>
+              <span class="submode-tag">implementation_quality</span>
+            </div>
+            <div class="pipeline-flow">
+              <span class="flow-step">Assignment</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Spec Compliance Review</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Implementation Quality Review</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Findings</span>
+              <span class="flow-arrow"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" fill="none"/></svg></span>
+              <span class="flow-step">Result</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 5. STORAGE ARCHITECTURE ===== -->
+  <section id="storage">
+    <div class="container">
+      <div class="section-header animate-in">
+        <div class="section-label">Storage</div>
+        <h2 class="section-title">Artifact File Architecture</h2>
+        <p class="section-desc">Artifact files are markdown files stored under <code>.brainlesser/</code> to hold context, plans, issue drafts, and execution runs. Each type has its own folder with an <code>index.yml</code> lookup file.</p>
+      </div>
+
+      <div class="storage-layout animate-in">
+        <div class="storage-tree-card">
+          <div class="file-tree">
+<span class="folder">.brainlesser/</span>
+<span class="tree-line">├── </span><span class="folder">discuss/</span>
+<span class="tree-line">│   ├── </span><span class="file">index.yml</span>
+<span class="tree-line">│   ├── </span><span class="file">0001-task-filter-sidebar.md</span>
+<span class="tree-line">│   └── </span><span class="file">0002-api-auth.md</span>
+<span class="tree-line">├── </span><span class="folder">plans/</span>
+<span class="tree-line">│   ├── </span><span class="file">index.yml</span>
+<span class="tree-line">│   ├── </span><span class="file">0001-task-filter-sidebar.md</span>
+<span class="tree-line">│   └── </span><span class="file">0002-api-auth.md</span>
+<span class="tree-line">├── </span><span class="folder">issues/</span>
+<span class="tree-line">│   ├── </span><span class="file">index.yml</span>
+<span class="tree-line">│   ├── </span><span class="file">0001-filter-status-assignee.md</span>
+<span class="tree-line">│   └── </span><span class="file">0002-auth-token-refresh.md</span>
+<span class="tree-line">└── </span><span class="folder">executions/</span>
+<span class="tree-line">    ├── </span><span class="file">index.yml</span>
+<span class="tree-line">    ├── </span><span class="file">0001-filter-status-assignee.md</span>
+<span class="tree-line">    └── </span><span class="file">0002-auth-token-refresh.md</span>
+          </div>
+        </div>
+
+        <div class="storage-tree-card">
+          <div class="storage-purpose-item"><span class="label">discuss/</span><span class="desc">Stores Plan-ready briefs from Q&amp;A sessions. Uses write-at-end policy - no file created during active Q&amp;A.</span></div>
+        </div>
+
+        <div class="storage-tree-card">
+          <div class="storage-purpose-item"><span class="label">plans/</span><span class="desc">Implementation plan files with hybrid format: human-friendly overview plus agent-executable tasks with issue-ready slices.</span></div>
+        </div>
+
+        <div class="storage-tree-card">
+          <div class="storage-purpose-item"><span class="label">issues/</span><span class="desc">Issue draft files as vertical slices with behavior, acceptance criteria, AFK/HITL classification, and dependency info.</span></div>
+        </div>
+
+        <div class="storage-tree-card">
+          <div class="storage-purpose-item"><span class="label">executions/</span><span class="desc">Execution run files tracking source readiness, mode selection, engineer dispatch results, and final verification state.</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 6. CHECKPOINT SYSTEM ===== -->
+  <section id="checkpoints">
+    <div class="container">
+      <div class="section-header animate-in">
+        <div class="section-label">Checkpoints</div>
+        <h2 class="section-title">Checkpoint System</h2>
+        <p class="section-desc">Static identifiers that trace work across Plans, Issues, Execution, Debug, and Review without timestamps or a central registry. Checkpoints do not apply to Discuss.</p>
+      </div>
+
+      <div class="checkpoint-grid animate-in">
+        <div class="checkpoint-card">
+          <div class="config-card-title">Format</div>
+          <div class="checkpoint-format">
+            <span class="prefix">&lt;source-prefix&gt;</span><span class="separator">-</span><span class="type-char">&lt;type&gt;</span><span class="sequence">&lt;sequence&gt;</span>
+          </div>
+          <div class="config-card-title" style="margin-top: 24px;">Prefix Rules</div>
+          <ul class="artifact-list">
+            <li>Plan source exists: use plan namespace (e.g. <code>P0001</code>)</li>
+            <li>Issue set without plan: use issue namespace (e.g. <code>I0001</code>)</li>
+            <li>Derive from artifact type and run number every time</li>
+            <li>Never reuse a checkpoint number, even if a section was deleted</li>
+          </ul>
+        </div>
+
+        <div class="checkpoint-card">
+          <div class="config-card-title">Examples</div>
+          <div class="checkpoint-examples">
+            <span class="checkpoint-example">P0001-T01</span>
+            <span class="checkpoint-example">P0001-I01</span>
+            <span class="checkpoint-example">P0001-E01</span>
+            <span class="checkpoint-example">P0001-D01</span>
+            <span class="checkpoint-example">P0001-R01</span>
+            <span class="checkpoint-example">I0001-E01</span>
+          </div>
+          <div class="config-card-title" style="margin-top: 24px;">Type Letters</div>
+          <div class="type-legend">
+            <div class="type-legend-item type-T"><div class="type-letter">T</div><span class="type-label">Plan task</span></div>
+            <div class="type-legend-item type-I"><div class="type-letter">I</div><span class="type-label">Issue</span></div>
+            <div class="type-legend-item type-E"><div class="type-letter">E</div><span class="type-label">Execution dispatch</span></div>
+            <div class="type-legend-item type-D"><div class="type-letter">D</div><span class="type-label">Debug result</span></div>
+            <div class="type-legend-item type-R"><div class="type-letter">R</div><span class="type-label">Review result</span></div>
+          </div>
+        </div>
+
+        <div class="checkpoint-card" style="grid-column: 1 / -1;">
+          <div class="config-card-title">Canonical Labels</div>
+          <div class="code-block">
+<span class="key">Checkpoint:</span> P0001-I01          <span class="comment"># ID of the current section</span>
+<span class="key">Source Checkpoint:</span> P0001-T01  <span class="comment"># Upstream checkpoint (optional)</span>
+          </div>
+          <div class="storage-purpose" style="border-top: none; margin-top: 12px; padding-top: 0;">
+            <div class="storage-purpose-item"><span class="label" style="min-width: 90px;">Plan tasks</span><span class="desc">Checkpoint only</span></div>
+            <div class="storage-purpose-item"><span class="label" style="min-width: 90px;">Issues</span><span class="desc">Checkpoint + Source Checkpoint when from a plan task</span></div>
+            <div class="storage-purpose-item"><span class="label" style="min-width: 90px;">Executions</span><span class="desc">Checkpoint + Source Checkpoint from task or issue</span></div>
+            <div class="storage-purpose-item"><span class="label" style="min-width: 90px;">Debug / Review</span><span class="desc">Checkpoint + Source Checkpoint pointing to direct execution checkpoint</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 7. CONFIGURATION SYSTEM ===== -->
+  <section id="configuration">
+    <div class="container">
+      <div class="section-header animate-in">
+        <div class="section-label">Configuration</div>
+        <h2 class="section-title">Configuration System</h2>
+        <p class="section-desc">Global prompt injection from <code>config.yml</code>, used to load or invoke skills and prompts at the runtime scope. Configuration is not a capability; it shapes how every capability runs.</p>
+      </div>
+
+      <div class="config-grid animate-in">
+        <div class="config-card">
+          <div class="config-card-title">config.yml Schema</div>
+          <div class="code-block">
+<span class="key">prompts:</span>
+  <span class="key">artifacts:</span> <span class="value">"use skill /style-writer-en for writing artifacts"</span>
+  <span class="key">conversation:</span> <span class="value">"use skill /yayer for every conversation"</span>
+  <span class="key">engineer:</span> <span class="value">""</span>
+  <span class="key">review:</span> <span class="value">""</span>
+          </div>
+          <ul class="artifact-list" style="margin-top: 16px;">
+            <li>Missing required key is a blocker</li>
+            <li>Values must be strings; non-string is a blocker</li>
+            <li>Empty string means no injection; skip silently</li>
+            <li>Ignore unknown keys but do not expose as supported schema</li>
+            <li>config.yml is the only source of truth - no defaults or fallbacks</li>
+          </ul>
+        </div>
+
+        <div class="config-card">
+          <div class="config-card-title">Prompt Load Order</div>
+          <ol class="load-order-list">
+            <li><span>Read <code>config.yml</code> from the Brainlesser skill root</span></li>
+            <li><span>Validate the required schema</span></li>
+            <li><span>Load or invoke <code>prompts.artifacts</code></span></li>
+            <li><span>Load or invoke <code>prompts.conversation</code></span></li>
+            <li><span>Detect the selected capability using Capability Routing</span></li>
+            <li><span>If dispatching Solo/Squad/Debug: load <code>prompts.engineer</code></span></li>
+            <li><span>If dispatching Review: load <code>prompts.review</code></span></li>
+          </ol>
+        </div>
+
+        <div class="config-card">
+          <div class="config-card-title">Prompt Priority (highest first)</div>
+          <ul class="priority-list">
+            <li class="priority-1"><div class="priority-num">1</div><div><span class="priority-label">System, tool, workspace safety rules</span><br><span class="priority-note">Always wins</span></div></li>
+            <li class="priority-2"><div class="priority-num">2</div><div><span class="priority-label">Brainlesser core contract</span><br><span class="priority-note">English artifact rule, storage, approvals, verification</span></div></li>
+            <li class="priority-3"><div class="priority-num">3</div><div><span class="priority-label">Capability-specific rules</span><br><span class="priority-note">Per-workflow constraints</span></div></li>
+            <li class="priority-4"><div class="priority-num">4</div><div><span class="priority-label">Prompt injection from config</span><br><span class="priority-note">config.yml referenced prompts</span></div></li>
+            <li class="priority-5"><div class="priority-num">5</div><div><span class="priority-label">User wording / style preferences</span><br><span class="priority-note">Lowest priority</span></div></li>
+          </ul>
+        </div>
+
+        <div class="config-card">
+          <div class="config-card-title">Prompt Scope</div>
+          <ul class="artifact-list">
+            <li><strong>artifacts</strong> controls writing style for artifact files only. Must not change output structure or artifact language.</li>
+            <li><strong>conversation</strong> controls style of all user-facing terminal output: questions, recommendations, reasons, completion and blocker messages.</li>
+            <li><strong>engineer</strong> applies to Solo Engineer, Squad Engineer, and Debug Engineer.</li>
+            <li><strong>review</strong> applies to Review Engineer. May define review behavior or quality reviewer helper.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 8. ARTIFACT FILE MANAGEMENT ===== -->
+  <section id="artifacts">
+    <div class="container">
+      <div class="section-header animate-in">
+        <div class="section-label">Artifacts</div>
+        <h2 class="section-title">Artifact File Management</h2>
+        <p class="section-desc">The main agent decides whether an artifact update must be written immediately or can be batched. Subagents do not write artifacts.</p>
+      </div>
+
+      <div class="artifact-grid animate-in">
+        <div class="artifact-card">
+          <div class="artifact-card-title"><span class="dot dot-write"></span> Write Now</div>
+          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">State-changing updates that must not be lost:</p>
+          <ul class="artifact-list">
+            <li>New artifact file</li>
+            <li>Status change</li>
+            <li>User approval or rejection</li>
+            <li>Blocker or blocker resolution</li>
+            <li>High-risk decision</li>
+            <li>Important terminology or scope decision</li>
+            <li>Failure, paused, cancelled, or completed state</li>
+            <li>Source or checkpoint mismatch, resume, or supersede decision</li>
+          </ul>
+        </div>
+
+        <div class="artifact-card">
+          <div class="artifact-card-title"><span class="dot dot-batch"></span> Batch</div>
+          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">Context accumulation without state change:</p>
+          <ul class="artifact-list">
+            <li>Question Log entries</li>
+            <li>Intermediate notes</li>
+            <li>Minor findings</li>
+            <li>Progress summary</li>
+            <li>Repeated context that does not change a decision</li>
+            <li>Dispatch details waiting for the final result of the same checkpoint</li>
+          </ul>
+        </div>
+
+        <div class="artifact-card">
+          <div class="artifact-card-title"><span class="dot dot-flush"></span> Flush Before</div>
+          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">Flush the batch before these events:</p>
+          <ul class="artifact-list">
+            <li>Changing capability</li>
+            <li>Handing off to Planner, Create Issues, Execute Plan, an Engineer, or Review Engineer</li>
+            <li>Asking for user approval from the latest artifact</li>
+            <li>Summarizing completion</li>
+            <li>Context grows long enough that important details may be forgotten</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="callout callout-info animate-in">
+        <div class="callout-title">Discuss Override: Write-at-End Policy</div>
+        <div class="callout-text">
+          Discuss uses a write-at-end policy instead of the Batch Update Policy. Do not create a discussion file or update <code>discuss/index.yml</code> during Q&amp;A. Write the discussion file and update the index once at Finalize or when the user asks to <code>pause</code>. Conversation history is the source of truth while Q&amp;A is active, so persisting every Q&amp;A pair is unnecessary. This override applies only to Discuss - all other capabilities still use the main Batch Update Policy.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 9. ENGINEER CONTRACT ===== -->
+  <section id="contract">
+    <div class="container">
+      <div class="section-header animate-in">
+        <div class="section-label">Contract</div>
+        <h2 class="section-title">Engineer Contract</h2>
+        <p class="section-desc">The shared rule set for assigning work to any Engineer capability and receiving structured results without coupling the Engineer to a specific caller. Every Engineer works as a standalone IPO unit.</p>
+      </div>
+
+      <div class="contract-layout animate-in">
+        <div class="contract-box contract-input">
+          <div class="contract-box-label">Input (Assignment)</div>
+          <div class="contract-fields">
+            <div class="contract-field">Engineer: Solo Engineer</div>
+            <div class="contract-field">Mode: solo_test_driven</div>
+            <div class="contract-field">Scope: Plan Task 1-3</div>
+            <div class="contract-field">Assignment summary</div>
+            <div class="contract-field">Constraints</div>
+            <div class="contract-field">Verification expected</div>
+            <div class="contract-field">Principles: TDD</div>
+          </div>
+        </div>
+
+        <div class="contract-box contract-process">
+          <div class="contract-box-label">Process</div>
+          <div style="font-size: 40px; color: var(--accent-blue); margin: 12px 0;">
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none" style="display: inline-block;">
+              <circle cx="24" cy="24" r="20" stroke="currentColor" stroke-width="2" stroke-dasharray="6 4"/>
+              <path d="M24 14v10l7 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <p style="font-size: 13px; color: var(--text-secondary); margin-top: 12px;">
+            Engineer reads assignment, scope, constraints, and expected verification before starting. Works within scope and returns a structured result.
+          </p>
+        </div>
+
+        <div class="contract-box contract-output">
+          <div class="contract-box-label">Output (Result)</div>
+          <div class="contract-fields">
+            <div class="contract-field">Status: completed</div>
+            <div class="contract-field">Result summary</div>
+            <div class="contract-field">Changed files</div>
+            <div class="contract-field">Verification</div>
+            <div class="contract-field">Blockers</div>
+            <div class="contract-field">Follow-ups</div>
+            <div class="contract-field">Reference</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="animate-in" style="margin-top: 32px; text-align: center;">
+        <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px;">Allowed Result Statuses</div>
+        <div class="status-badges">
+          <span class="status-badge status-completed">completed</span>
+          <span class="status-badge status-blocked">blocked</span>
+          <span class="status-badge status-failed">failed</span>
+          <span class="status-badge status-cancelled">cancelled</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 10. PRE-DELIVERY VERIFICATION ===== -->
+  <section id="verification">
+    <div class="container">
+      <div class="section-header animate-in">
+        <div class="section-label">Verification</div>
+        <h2 class="section-title">Pre-Delivery Verification Checklist</h2>
+        <p class="section-desc">Before handing the run back to the user, verify every item below. Fix failures. Report unresolved limitations.</p>
+      </div>
+
+      <div class="verification-grid animate-in">
+        <div class="verification-category">
+          <div class="verification-cat-title"><span class="verification-cat-num">1</span> Configuration</div>
+          <div class="verification-item" onclick="toggleCheck(this)">
+            <div class="verification-check"><svg viewBox="0 0 10 10" fill="none"><path d="M2 5.5L4 7.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <span>config.yml read and validated per Required Schema</span>
+          </div>
+          <div class="verification-item" onclick="toggleCheck(this)">
+            <div class="verification-check"><svg viewBox="0 0 10 10" fill="none"><path d="M2 5.5L4 7.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <span>Prompt load order followed per Prompt Load Order</span>
+          </div>
+          <div class="verification-item" onclick="toggleCheck(this)">
+            <div class="verification-check"><svg viewBox="0 0 10 10" fill="none"><path d="M2 5.5L4 7.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <span>Prompt scope respected per Prompt Scope</span>
+          </div>
+          <div class="verification-item" onclick="toggleCheck(this)">
+            <div class="verification-check"><svg viewBox="0 0 10 10" fill="none"><path d="M2 5.5L4 7.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <span>Conflict order applied per Prompt Priority</span>
+          </div>
+        </div>
+
+        <div class="verification-category">
+          <div class="verification-cat-title"><span class="verification-cat-num">2</span> Routing</div>
+          <div class="verification-item" onclick="toggleCheck(this)">
+            <div class="verification-check"><svg viewBox="0 0 10 10" fill="none"><path d="M2 5.5L4 7.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <span>Intent detected from conversation per Capability Routing</span>
+          </div>
+          <div class="verification-item" onclick="toggleCheck(this)">
+            <div class="verification-check"><svg viewBox="0 0 10 10" fill="none"><path d="M2 5.5L4 7.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <span>Smallest fitting capability chosen per Capability Routing</span>
+          </div>
+          <div class="verification-item" onclick="toggleCheck(this)">
+            <div class="verification-check"><svg viewBox="0 0 10 10" fill="none"><path d="M2 5.5L4 7.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <span>Failure routed to Debug Engineer before any fix per Capability Routing</span>
+          </div>
+        </div>
+
+        <div class="verification-category">
+          <div class="verification-cat-title"><span class="verification-cat-num">3</span> Artifact Files</div>
+          <div class="verification-item" onclick="toggleCheck(this)">
+            <div class="verification-check"><svg viewBox="0 0 10 10" fill="none"><path d="M2 5.5L4 7.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <span>Storage layout respected per Artifact File Management</span>
+          </div>
+          <div class="verification-item" onclick="toggleCheck(this)">
+            <div class="verification-check"><svg viewBox="0 0 10 10" fill="none"><path d="M2 5.5L4 7.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <span>Batch policy applied per Batch Update Policy</span>
+          </div>
+          <div class="verification-item" onclick="toggleCheck(this)">
+            <div class="verification-check"><svg viewBox="0 0 10 10" fill="none"><path d="M2 5.5L4 7.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <span>Discuss write-at-end policy respected per Discuss Override</span>
+          </div>
+          <div class="verification-item" onclick="toggleCheck(this)">
+            <div class="verification-check"><svg viewBox="0 0 10 10" fill="none"><path d="M2 5.5L4 7.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <span>index.yml updates limited to creation, status, source, mode, or path changes</span>
+          </div>
+        </div>
+
+        <div class="verification-category">
+          <div class="verification-cat-title"><span class="verification-cat-num">4</span> Checkpoints</div>
+          <div class="verification-item" onclick="toggleCheck(this)">
+            <div class="verification-check"><svg viewBox="0 0 10 10" fill="none"><path d="M2 5.5L4 7.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <span>Checkpoint format followed per Format specification</span>
+          </div>
+          <div class="verification-item" onclick="toggleCheck(this)">
+            <div class="verification-check"><svg viewBox="0 0 10 10" fill="none"><path d="M2 5.5L4 7.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <span>Canonical labels written per Canonical Labels</span>
+          </div>
+          <div class="verification-item" onclick="toggleCheck(this)">
+            <div class="verification-check"><svg viewBox="0 0 10 10" fill="none"><path d="M2 5.5L4 7.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <span>Duplicate checkpoint policy honored</span>
+          </div>
+        </div>
+
+        <div class="verification-category" style="grid-column: 1 / -1;">
+          <div class="verification-cat-title"><span class="verification-cat-num">5</span> Capability Handoff</div>
+          <div class="verification-item" onclick="toggleCheck(this)">
+            <div class="verification-check"><svg viewBox="0 0 10 10" fill="none"><path d="M2 5.5L4 7.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <span>Active capability loaded per Capabilities</span>
+          </div>
+          <div class="verification-item" onclick="toggleCheck(this)">
+            <div class="verification-check"><svg viewBox="0 0 10 10" fill="none"><path d="M2 5.5L4 7.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <span>Engineer Contract loaded for any Engineer dispatch</span>
+          </div>
+          <div class="verification-item" onclick="toggleCheck(this)">
+            <div class="verification-check"><svg viewBox="0 0 10 10" fill="none"><path d="M2 5.5L4 7.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <span>Test-Driven Development principle loaded when the run applies it</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="page-footer">
+    <div class="container">
+      <p class="footer-text">Brainlesser Architecture Visualization &middot; v2026-05-20 &middot; Author: i3acksp4ce &middot; Skiller 4.5.0</p>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+/* ===== Pipeline Toggle ===== */
+function togglePipeline(header) {
+  const card = header.closest('.pipeline-card');
+  card.classList.toggle('open');
+}
+
+/* ===== Verification Check Toggle ===== */
+function toggleCheck(item) {
+  const check = item.querySelector('.verification-check');
+  check.classList.toggle('checked');
+}
+
+/* ===== Architecture Node Click -> Scroll ===== */
+document.querySelectorAll('.arch-node[data-target]').forEach(function(node) {
+  node.addEventListener('click', function() {
+    var targetId = this.getAttribute('data-target');
+    var target = document.getElementById(targetId);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      /* Highlight the pipeline card */
+      document.querySelectorAll('.arch-node').forEach(function(n) { n.classList.remove('highlight'); });
+      this.classList.add('highlight');
+      /* Open the pipeline if collapsed */
+      if (!target.classList.contains('open')) {
+        target.classList.add('open');
+      }
+      /* Brief highlight on the target */
+      target.style.borderColor = 'var(--accent-blue)';
+      target.style.boxShadow = 'var(--shadow-glow-blue)';
+      setTimeout(function() {
+        target.style.borderColor = '';
+        target.style.boxShadow = '';
+      }, 1500);
+    }
+  });
+});
+
+/* ===== Routing Table Row Click -> Scroll ===== */
+document.querySelectorAll('.routing-table tr[data-target]').forEach(function(row) {
+  row.addEventListener('click', function() {
+    var targetId = this.getAttribute('data-target');
+    var target = document.getElementById(targetId);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (!target.classList.contains('open')) {
+        target.classList.add('open');
+      }
+      target.style.borderColor = 'var(--accent-blue)';
+      target.style.boxShadow = 'var(--shadow-glow-blue)';
+      setTimeout(function() {
+        target.style.borderColor = '';
+        target.style.boxShadow = '';
+      }, 1500);
+    }
+  });
+});
+
+/* ===== SVG Connection Lines ===== */
+function drawConnections() {
+  var diagram = document.getElementById('archDiagram');
+  var svg = document.getElementById('archSvg');
+  var hub = diagram.querySelector('.arch-hub');
+  if (!diagram || !svg || !hub) return;
+
+  var diagramRect = diagram.getBoundingClientRect();
+  var hubRect = hub.getBoundingClientRect();
+  var hubCx = hubRect.left + hubRect.width / 2 - diagramRect.left;
+  var hubCy = hubRect.top + hubRect.height / 2 - diagramRect.top;
+
+  var lines = '';
+  document.querySelectorAll('.arch-node').forEach(function(node) {
+    var nodeRect = node.getBoundingClientRect();
+    var nodeCx = nodeRect.left + nodeRect.width / 2 - diagramRect.left;
+    var nodeCy = nodeRect.top + nodeRect.height / 2 - diagramRect.top;
+    lines += '<line class="arch-line" x1="' + hubCx + '" y1="' + hubCy + '" x2="' + nodeCx + '" y2="' + nodeCy + '" />';
+  });
+
+  svg.setAttribute('width', diagram.offsetWidth);
+  svg.setAttribute('height', diagram.offsetHeight);
+  svg.innerHTML = lines;
+}
+
+window.addEventListener('load', drawConnections);
+window.addEventListener('resize', drawConnections);
+
+/* ===== Scroll Observer: Side Nav + Top Bar ===== */
+var sections = document.querySelectorAll('section[id]');
+var sideNavLinks = document.querySelectorAll('.side-nav a');
+var topBar = document.getElementById('topBar');
+
+var sectionObserver = new IntersectionObserver(function(entries) {
+  entries.forEach(function(entry) {
+    if (entry.isIntersecting) {
+      var id = entry.target.id;
+      sideNavLinks.forEach(function(link) {
+        link.classList.toggle('active', link.getAttribute('data-section') === id);
+      });
+    }
+  });
+}, { threshold: 0.3, rootMargin: '-10% 0px -60% 0px' });
+
+sections.forEach(function(section) {
+  sectionObserver.observe(section);
+});
+
+/* Top bar visibility */
+window.addEventListener('scroll', function() {
+  if (window.scrollY > window.innerHeight * 0.7) {
+    topBar.classList.add('visible');
+  } else {
+    topBar.classList.remove('visible');
+  }
+});
+
+/* ===== Scroll-triggered Animations ===== */
+var animateElements = document.querySelectorAll('.animate-in');
+var animObserver = new IntersectionObserver(function(entries) {
+  entries.forEach(function(entry) {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+      animObserver.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+animateElements.forEach(function(el) {
+  animObserver.observe(el);
+});
+</script>
+
+</body>
+</html>
